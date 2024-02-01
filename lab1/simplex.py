@@ -1,6 +1,7 @@
 import numpy as np
+from fractions import Fraction
 
-def check_basic(A, b, c, basicvars, iterations):
+def check_basic(A, b, c, basicvars, iterations, z = 0):
     # INPUT: A - mxn matrix
     #        b - mx1 matrix
     #        c - nx1 matrix
@@ -15,15 +16,14 @@ def check_basic(A, b, c, basicvars, iterations):
     A = A.astype(float)
     b = b.astype(float)
     c = c.astype(float)
-    z = 0
     
     # Initially, non-basic variables are all in the front, and basic in the back
     nbr_basics      = len(basicvars)
     nbr_nonbasics   = len(c) - nbr_basics
 
     # Make sure basic variables are ordered
-    if not np.equal(A[:,basicvars], np.identity(len(basicvars))).all():
-        print(f'\nNot identity matrix\n{A[:,basicvars]}\n')
+    if not np.equal(A[:,basicvars], np.identity(nbr_basics)).all() or not np.equal(c[basicvars], np.zeros(nbr_basics)).all():
+        print(f'\nNot identity matrix\n{A[:,basicvars]}\n{c[basicvars]}\n')
 
         # Gaussian elimination to get identity matrix
         for row in range(nbr_basics):
@@ -46,10 +46,11 @@ def check_basic(A, b, c, basicvars, iterations):
                 factor = A[other_row, row + nbr_nonbasics]
                 A[other_row,:] -= factor * A[row,:]
                 b[other_row] -= factor * b[row]
-            
 
 
+    # Pivot iterations
     basic_idxs = basicvars
+    # basic_idxs_idxs = [x if x in basic_idxs else -1 for x in range(len(c))]
     non_basic_idxs = [x for x in range(len(c)) if x not in basic_idxs]
 
     for _ in range(iterations):
@@ -61,22 +62,28 @@ def check_basic(A, b, c, basicvars, iterations):
         for col in range(len(A[0])):
             val = A[:,col].reshape(1,nbr_basics) @ c[basic_idxs].reshape(nbr_basics,1)
             diff = c[col] - val
-            if diff > max:
+            # print(f'c: {c[basic_idxs]}, val: {val}, diff: {diff}')
+            if diff >= max:
                 max = diff
                 max_col_idx = col
+                # print(f'new max: {max} / idx: {max_col_idx}')
 
         # Find pivot row
         min = float('inf')
         min_row_idx = 0
     
         for i, (basic, col_val) in enumerate(zip(b, A[:,max_col_idx])):
-            if col_val != 0 and basic / col_val < min:
-                min = basic / col_val
-                min_row_idx = i
+            if col_val != 0:
+                quote = basic / col_val
+                if quote <= min and quote >= 0:
+                    min = basic / col_val
+                    min_row_idx = i
+
+        print(f'row: {min_row_idx}, col: {max_col_idx}')
         
         # Normalize the pivot row
         pivot_element = A[min_row_idx, max_col_idx]
-        A[min_row_idx, :] = A[min_row_idx, :] / pivot_element
+        A[min_row_idx, :] /= pivot_element
         b[min_row_idx] /= pivot_element
     
         # Remove normalized pivot row from other rows
@@ -91,8 +98,12 @@ def check_basic(A, b, c, basicvars, iterations):
         z -= factor * b[min_row_idx]
 
         # Swap non-basic and basic variables used in pivot
-        basic_idxs.remove(min_row_idx + nbr_nonbasics)
-        basic_idxs.append(max_col_idx)
+        basic_idxs[min_row_idx] = max_col_idx
+
+        # basic_idxs.remove(min_row_idx + nbr_nonbasics)
+        # basic_idxs.append(max_col_idx)
+
+        non_basic_idxs = [x for x in range(len(c)) if x not in basic_idxs]
 
 
     m, n = A.shape
@@ -105,20 +116,17 @@ def check_basic(A, b, c, basicvars, iterations):
     tableau[-1,-1] = -z
 
     
-   # Extract basic solution
+    # Extract basic solution
     x = np.zeros(n)
-    x[basicvars] = b
+    x[basic_idxs] = b
 
     # Check if x is a basic solution
-    basic = True
-    for i, c in enumerate(np.array(A).T):
-        if i not in basicvars:
-            if sum(c) != 1 or not len([num for num in c if num == 0]) == len(c) - 1:
-                basic = False
-    
+    basic = all(x[non_basic_idxs] == 0)
 
-    # Check for optimality and feasibility
-    optimal = False if np.max(tableau[-1, :-1]) >= 0 else True
+    # Check if solution is optimal
+    optimal = True if np.max(c) <= 0 else False
+
+    # Check if solution is feasible 
     feasible = True if np.all(b >= 0) else False
 
     return x, basic, optimal, feasible, tableau
@@ -134,13 +142,13 @@ c_start = np.array([2, 1, 0, 0, 0])
 
 basicvars_arr = [2, 3, 4]
 
-x, basic, optimal, feasible, tableau = check_basic(A_start, b_start, c_start, basicvars_arr, 2)
+x, basic, optimal, feasible, tableau = check_basic(A_start, b_start, c_start, basicvars_arr, 0)
 
 print()
-# print("Solution Vector (x):", x)
-# print("Basic solution:", basic)
-# print("Optimal Solution:", optimal)
-# print("Feasible Solution:", feasible)
+print("Solution Vector (x):", x)
+print("Basic solution:", basic)
+print("Optimal Solution:", optimal)
+print("Feasible Solution:", feasible)
 print("Simplex Tableau:")
 print(tableau)
 
@@ -155,7 +163,55 @@ c = np.array([-1, -1, -1, -1, -1])
 
 basicvars = [2, 3, 4]
 
-x, basic, optimal, feasible, tableau = check_basic(A, b, c, basicvars, 1)
 
+x, basic, optimal, feasible, tableau = check_basic(A, b, c, basicvars, 0)
+
+print()
+print("Solution Vector (x):", x)
+print("Basic solution:", basic)
+print("Optimal Solution:", optimal)
+print("Feasible Solution:", feasible)
 print("Simplex Tableau:")
 print(tableau)
+
+
+
+# Problem 4, phase I
+A = np.array([[1, 2, 2, 1, 1, 0, 1, 0, 0],
+              [1, 2, 1, 1, 2, 1, 0, 1, 0],
+              [3, 6, 2, 1, 3, 0, 0, 0, 1]])
+b = np.array([12, 18, 24])
+c = np.array([0, 0, 0, 0, 0, 0, 1, 1, 1])
+
+basicvars = [6, 7, 8]
+
+x, basic, optimal, feasible, tableau = check_basic(A, b, -c, basicvars, 3)
+
+print("Problem 4, phase I")
+print("Solution Vector (x):", x)
+print("Basic solution:", basic)
+print("Optimal Solution:", optimal)
+print("Feasible Solution:", feasible)
+print("Simplex Tableau:")
+# print(np.vectorize(lambda x: str(Fraction(x).limit_denominator(10**5)))(tableau))
+print (tableau)
+
+A = np.array([[0, 0, 1, 0.5, 0, 0],
+              [0, 0, 0, 0.5, 1, 1],
+              [0.5, 1, 0, 0, 0.5, 0]])
+b = np.array([3, 9, 3])
+c = np.array([0, -4, -3, 0, 0, 4])
+c = np.array([1, -2, -3, -1, -1, 2])
+
+basicvars = [2, 5, 1]
+
+x, basic, optimal, feasible, tableau = check_basic(A, b, c, basicvars, 0, 0)
+
+print()
+print("Solution Vector (x):", x)
+print("Basic solution:", basic)
+print("Optimal Solution:", optimal)
+print("Feasible Solution:", feasible)
+print("Simplex Tableau:")
+# print(np.vectorize(lambda x: str(Fraction(x).limit_denominator(10**5)))(tableau))
+print (tableau)
