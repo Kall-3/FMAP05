@@ -63,7 +63,7 @@ def check_basic(A, b, c, basicvars, iterations, z = 0):
             val = A[:,col].reshape(1,nbr_basics) @ c[basic_idxs].reshape(nbr_basics,1)
             diff = c[col] - val
             # print(f'c: {c[basic_idxs]}, val: {val}, diff: {diff}')
-            if diff >= max:
+            if diff > max:
                 max = diff
                 max_col_idx = col
                 # print(f'new max: {max} / idx: {max_col_idx}')
@@ -175,7 +175,6 @@ print("Simplex Tableau:")
 print(tableau)
 
 
-
 # Problem 4, phase I
 A = np.array([[1, 2, 2, 1, 1, 0, 1, 0, 0],
               [1, 2, 1, 1, 2, 1, 0, 1, 0],
@@ -185,7 +184,7 @@ c = np.array([0, 0, 0, 0, 0, 0, 1, 1, 1])
 
 basicvars = [6, 7, 8]
 
-x, basic, optimal, feasible, tableau = check_basic(A, b, -c, basicvars, 3)
+x, basic, optimal, feasible, tableau = check_basic(A, b, -c, basicvars, 4)
 
 print("Problem 4, phase I")
 print("Solution Vector (x):", x)
@@ -214,4 +213,25 @@ print("Optimal Solution:", optimal)
 print("Feasible Solution:", feasible)
 print("Simplex Tableau:")
 # print(np.vectorize(lambda x: str(Fraction(x).limit_denominator(10**5)))(tableau))
+print (tableau)
+
+
+# Phase 2 second try
+A = np.array([[0.0, 0.0, 1.0, 0.5, 0.0, 0.0],
+              [-1.0, -2.0, 0.0, 0.5, 0.0, 1.0],
+              [1.0, 2.0, 0.0, 0.0, 1.0, 0.0]])
+b = np.array([3.0, 3.0, 6.0])    
+c = np.array([-4, -4, 0, 0.5, 0, 0])
+
+basicvars = [2, 5, 4]
+
+x, basic, optimal, feasible, tableau = check_basic(A, b, -c, basicvars, 1, 9)
+
+print()
+print(f'Phase 2, second method')
+print("Solution Vector (x):", x)
+print("Basic solution:", basic)
+print("Optimal Solution:", optimal)
+print("Feasible Solution:", feasible)
+print("Simplex Tableau:")
 print (tableau)
