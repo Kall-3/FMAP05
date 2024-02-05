@@ -63,6 +63,9 @@ def check_basic(A, b, c, basicvars, iterations, z = 0):
             val = A[:,col].reshape(1,nbr_basics) @ c[basic_idxs].reshape(nbr_basics,1)
             diff = c[col] - val
             # print(f'c: {c[basic_idxs]}, val: {val}, diff: {diff}')
+
+            # if > chose firs best
+            # if >= chose last best
             if diff > max:
                 max = diff
                 max_col_idx = col
@@ -75,6 +78,9 @@ def check_basic(A, b, c, basicvars, iterations, z = 0):
         for i, (basic, col_val) in enumerate(zip(b, A[:,max_col_idx])):
             if col_val != 0:
                 quote = basic / col_val
+
+                # if > chose firs best
+                # if >= chose last best
                 if quote <= min and quote >= 0:
                     min = basic / col_val
                     min_row_idx = i
@@ -129,7 +135,7 @@ def check_basic(A, b, c, basicvars, iterations, z = 0):
     # Check if solution is feasible 
     feasible = True if np.all(b >= 0) else False
 
-    return x, basic, optimal, feasible, tableau
+    return x, basic, optimal, feasible, basic_idxs, tableau
 
 
 # Problem 2
@@ -142,7 +148,7 @@ c_start = np.array([2, 1, 0, 0, 0])
 
 basicvars_arr = [2, 3, 4]
 
-x, basic, optimal, feasible, tableau = check_basic(A_start, b_start, c_start, basicvars_arr, 0)
+x, basic, optimal, feasible, basic_idxs, tableau = check_basic(A_start, b_start, c_start, basicvars_arr, 0)
 
 print()
 print("Solution Vector (x):", x)
@@ -164,7 +170,7 @@ c = np.array([-1, -1, -1, -1, -1])
 basicvars = [2, 3, 4]
 
 
-x, basic, optimal, feasible, tableau = check_basic(A, b, c, basicvars, 0)
+x, basic, optimal, feasible, basic_idxs, tableau = check_basic(A, b, c, basicvars, 0)
 
 print()
 print("Solution Vector (x):", x)
@@ -184,54 +190,62 @@ c = np.array([0, 0, 0, 0, 0, 0, 1, 1, 1])
 
 basicvars = [6, 7, 8]
 
-x, basic, optimal, feasible, tableau = check_basic(A, b, -c, basicvars, 4)
+x, basic, optimal, feasible, basic_idxs, tableau = check_basic(A, b, -c, basicvars, 4)
 
 print("Problem 4, phase I")
 print("Solution Vector (x):", x)
 print("Basic solution:", basic)
 print("Optimal Solution:", optimal)
 print("Feasible Solution:", feasible)
+print("Basix indicies: ", basic_idxs)
 print("Simplex Tableau:")
 # print(np.vectorize(lambda x: str(Fraction(x).limit_denominator(10**5)))(tableau))
 print (tableau)
 
-A = np.array([[0, 0, 1, 0.5, 0, 0],
-              [0, 0, 0, 0.5, 1, 1],
-              [0.5, 1, 0, 0, 0.5, 0]])
-b = np.array([3, 9, 3])
-c = np.array([0, -4, -3, 0, 0, 4])
-c = np.array([1, -2, -3, -1, -1, 2])
-
-basicvars = [2, 5, 1]
-
-x, basic, optimal, feasible, tableau = check_basic(A, b, c, basicvars, 0, 0)
-
-print()
-print("Solution Vector (x):", x)
-print("Basic solution:", basic)
-print("Optimal Solution:", optimal)
-print("Feasible Solution:", feasible)
-print("Simplex Tableau:")
-# print(np.vectorize(lambda x: str(Fraction(x).limit_denominator(10**5)))(tableau))
-print (tableau)
-
-
-# Phase 2 second try
-A = np.array([[0.0, 0.0, 1.0, 0.5, 0.0, 0.0],
+# Problem 4, phase II
+A = np.array([[0.0,  0.0,  1.0, 0.5, 0.0, 0.0],
               [-1.0, -2.0, 0.0, 0.5, 0.0, 1.0],
-              [1.0, 2.0, 0.0, 0.0, 1.0, 0.0]])
-b = np.array([3.0, 3.0, 6.0])    
-c = np.array([-4, -4, 0, 0.5, 0, 0])
+              [1.0,  2.0,  0.0, 0.0, 1.0, 0.0]])
+b = np.array([3.0, 3.0, 6.0])
 
-basicvars = [2, 5, 4]
+c = -np.array([1.0, -2.0, -3.0, -1.0, -1.0, 2.0])
 
-x, basic, optimal, feasible, tableau = check_basic(A, b, -c, basicvars, 1, 9)
+z = 0
+for r, bi in enumerate(basic_idxs):
+    factor = (float) (- c[bi] / A[r, bi])
+    c += factor * A[r,:]
+    z += factor * b[r]
+
+
+print("New objective function: ", np.append(c, z))
+
+basicvars = basic_idxs
+
+x, basic, optimal, feasible, basic_idxs, tableau = check_basic(A, b, -c, basicvars, 0, -z)
 
 print()
-print(f'Phase 2, second method')
 print("Solution Vector (x):", x)
 print("Basic solution:", basic)
 print("Optimal Solution:", optimal)
 print("Feasible Solution:", feasible)
 print("Simplex Tableau:")
+# print(np.vectorize(lambda x: str(Fraction(x).limit_denominator(10**5)))(tableau))
+print (tableau)
+
+A = np.array([[2.0, -3.0, 2.0, 1.0, 0.0],
+              [-1.0, 1.0, 1.0, 0.0, 1.0]])
+b = np.array([3.0, 5.0])
+c = np.array([3.0, 2.0, 1.0, 0.0, 0.0])
+
+basicvars = [3, 4]
+
+x, basic, optimal, feasible, basic_idxs, tableau = check_basic(A, b, c, basicvars, 2, 0)
+
+print()
+print("Solution Vector (x):", x)
+print("Basic solution:", basic)
+print("Optimal Solution:", optimal)
+print("Feasible Solution:", feasible)
+print("Simplex Tableau:")
+# print(np.vectorize(lambda x: str(Fraction(x).limit_denominator(10**5)))(tableau))
 print (tableau)
