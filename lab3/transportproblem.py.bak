@@ -1,0 +1,222 @@
+import numpy as np
+
+inf = 10**4
+# Example problem
+C = np.array([[11, inf, 8,  8],
+              [7,    5, 6, 12],
+              [10,   6, 8,  5]])
+n, m = np.shape(C)
+
+X = np.zeros((n, m))
+supply = np.array([100, 120, 60])
+demand = np.array([50, 40, 90, 70])
+
+s, d = np.sum(supply), np.sum(demand)
+
+# Another problem
+C = np.array([[5, 7,  9, 6],
+              [6, 7, 10, 5],
+              [7, 6,  8, 1]])
+n, m = np.shape(C)
+
+X = np.zeros((n, m))
+supply = np.array([120, 140, 100])
+demand = np.array([100, 60, 80, 120])
+
+s, d = np.sum(supply), np.sum(demand)
+
+has_dummy = False
+
+# Determine supply demand relationship
+if s < d:
+    print("Supply too small, infeasible\n")
+elif s > d:
+    print("Supply greater than demand, introduce dummy demand")
+    new = np.array([0 for _ in range(n)])
+    C = np.column_stack((C, new))
+    X = np.column_stack((X, new))
+    demand = np.append(demand, s - d)
+    has_dummy = True
+    print("C:\n", C)
+    print("demand:\n", demand, '\n')
+else:
+    print("Supply meets demand\n")
+
+
+# Find initial feasable solution using Vogel's method
+
+# Calculate best difference between second and smallest cost, use largest
+best_diff = -1
+best_diff_coords = (-1, -1, -1) # Last element gives axis
+
+for j, col in (enumerate(C.T[:-1]) if has_dummy else enumerate(C.T)):
+    # print(col)
+    smallest = inf
+    second_smallest = inf
+    for cost in col:
+        if cost < smallest:
+            second_smallest = smallest
+            smallest = cost
+        elif cost < second_smallest:
+            second_smallest = cost
+
+    diff = second_smallest - smallest
+    if diff >= best_diff:
+        best_diff = diff
+        best_diff_coords = (-1, j, 1) # Row don't matter, col j, axis 1
+
+for i, row in enumerate(C):
+    if has_dummy:
+        row = row[:-1]
+    # print(row)
+    smallest = inf
+    second_smallest = inf
+    for cost in row:
+        if cost < smallest:
+            second_smallest = smallest
+            smallest = cost
+        elif cost < second_smallest:
+            second_smallest = cost
+
+    diff = second_smallest - smallest
+    if diff >= best_diff:
+        best_diff = diff
+        best_diff_coords = (i, -1, 0) # Row i, col don't matter, axis 0
+    
+row_order = sorted(row_order, key=lambda x: (-x[1], -x[0]))
+col_order = sorted(col_order, key=lambda x: (-x[1], -x[0]))
+print(row_order)
+print(col_order)
+print()
+
+# Helper function to fill supply/cost table "X"
+def fill_demand(target, row, current_supply_used): # True for row, false for col
+    if row:
+        # print("row best")
+        C_c = np.copy(C)
+        while True:
+            min_col = np.argmin(C_c[target, :]) # Best row to fill
+            if demand[min_col] - X[target, min_col] != 0: # Can't choose this, take next best
+                break
+            else:
+                C_c[target, min_col] = inf
+
+        print(target, "row best, min col: ", min_col)
+        
+        available_supply = supply[target] - current_supply_used[target]
+        demanded_supply = demand[min_col] - X[target, min_col]
+
+        if available_supply <= demanded_supply:
+            X[target, min_col] += available_supply # Fill
+            current_supply_used[target] += available_supply
+        else: # Surplus after we fill
+            X[target, min_col] += demanded_supply
+            current_supply_used[target] += demanded_supply
+            current_supply_used = fill_demand(target, row, current_supply_used)
+
+    else:
+        # Find lowest cost with demand left
+        C_c = np.copy(C)
+        while True:
+            min_row = np.argmin(C_c[:, target]) # Best row to fill
+            if current_supply_used[min_row] < supply[min_row]:
+                break
+            else:
+                C_c[min_row, target] = inf
+            
+        print(target, "col best, min row: ", min_row)
+
+        available_supply = supply[min_row] - current_supply_used[min_row]
+        demanded_supply = demand[target] - sum(X[:, target])
+
+        if available_supply <= demanded_supply:
+            X[min_row, target] += available_supply # Fill
+            current_supply_used[min_row] += available_supply # Update reduced costs
+            current_supply_used = fill_demand(target, row, current_supply_used) # Still have demand
+        else: # Surplus after we fill
+            X[min_row, target] += demanded_supply
+            current_supply_used[min_row] += demanded_supply
+
+    return current_supply_used
+
+# Fill table in order of highest diff, then last row first, then last column first
+current_supply_used = [0, 0, 0]
+
+while np.sum(current_supply_used) < d: # Current supply total less than demand
+    if row_order:
+        if col_order:
+            # Elements left in row and col order
+            if col_order[0][1] > row_order[0][1] :
+                # Col best
+                current_supply_used = fill_demand(col_order[0][0], False, current_supply_used)
+                del col_order[0]
+            else:
+                # Row best/same
+                current_supply_used = fill_demand(row_order[0][0], True, current_supply_used)
+                del row_order[0]
+        else:
+            # No elements in col order, row best
+            current_supply_used = fill_demand(row_order[0][0], True, current_supply_used)
+            del row_order[0]
+    elif col_order:
+        # No elements in row order
+        current_supply_used = fill_demand(col_order[0][0], False, current_supply_used)
+        del col_order[0]
+    else:
+        print("Vogel's method failed!!!")
+
+
+# Check for remaining supply and place in dummy demand
+surplus_supply = sum(supply) - sum(current_supply_used)
+if surplus_supply != 0:
+    for i in range(n):
+        if current_supply_used[i] != supply[i]:
+            X[i,-1] = surplus_supply
+        
+print(f'X:\n{X}')
+print(f'C:\n{C}')
+print()
+
+
+# Iterate calculating the reduced costs and move from most expensive to negative reduced costs until no negative remain
+# Reduced costs
+C_r = np.zeros((n, m))
+
+# Find where the reduced cost is zero, i.e. where the supply is not zero
+non_zero_reduced_cost_coords = []
+for i in range(n):
+    for j in range(m): # range(np.shape(X)[1]):
+        if X[i, j] > 0:
+            non_zero_reduced_cost_coords.append((i,j))
+
+print(non_zero_reduced_cost_coords)
+
+# Iterate through and calculate all slacks (v & w)
+v = np.zeros(n) # First coord is zero
+w = np.zeros(m)
+
+solved_v = np.copy(v)
+solved_w = np.copy(w)
+
+first = True
+
+while non_zero_reduced_cost_coords:
+    coords = non_zero_reduced_cost_coords.pop(0)
+    print(coords)
+    if first:
+        # first v = 0
+        solved_v[coords[0]] = 1
+        first = False
+
+    if not solved_v[coords[0]] and solved_w[coords[1]]:
+        v[coords[0]] = C[coords] - w[coords[1]]
+        solved_v[coords[0]] = 1
+    elif solved_v[coords[0]]:
+        w[coords[1]] = C[coords] - v[coords[0]]
+        solved_w[coords[1]] = 1
+    else: # Can't solve right now
+        non_zero_reduced_cost_coords.append(coords)
+
+print(v, w)
+print(C)
+print(C_r)
